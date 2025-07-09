@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from typing import Optional
 from wordcloud import WordCloud
-import seaborn as sns
 
 class Visualizer:
     """시각화 도구 클래스"""
