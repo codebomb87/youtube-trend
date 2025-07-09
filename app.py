@@ -23,8 +23,22 @@ st.set_page_config(
 
 # 동적 테마 시스템 사용 (스타일은 apply_theme_styles()에서 적용)
 
+def get_youtube_api_key():
+    """YouTube API 키를 가져오는 함수 (Streamlit Cloud와 로컬 모두 지원)"""
+    try:
+        # Streamlit Cloud에서 실행 중인 경우
+        return st.secrets["YOUTUBE_API_KEY"]
+    except (KeyError, FileNotFoundError, AttributeError):
+        # 로컬 개발 환경인 경우
+        import os
+        return os.getenv('YOUTUBE_API_KEY')
+
 def initialize_session_state():
     """세션 상태 초기화"""
+    # API 키 설정
+    if config.YOUTUBE_API_KEY is None:
+        config.YOUTUBE_API_KEY = get_youtube_api_key()
+    
     if 'youtube_api' not in st.session_state:
         st.session_state.youtube_api = YouTubeAPI()
     if 'text_processor' not in st.session_state:
@@ -240,11 +254,17 @@ def check_api_key():
     if not config.YOUTUBE_API_KEY:
         st.error("🔑 YouTube API 키가 설정되지 않았습니다!")
         st.markdown("""
-        ### API 키 설정 방법:
+        ### 📋 API 키 설정 방법:
+        
+        **로컬 개발의 경우:**
         1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트 생성
         2. YouTube Data API v3 활성화
         3. API 키 생성
         4. `.env` 파일에 `YOUTUBE_API_KEY=your_api_key` 추가
+        
+        **Streamlit Cloud 배포의 경우:**
+        1. App Settings > Secrets에서 설정
+        2. `YOUTUBE_API_KEY = "your_api_key"` 형식으로 입력
         """)
         st.stop()
 

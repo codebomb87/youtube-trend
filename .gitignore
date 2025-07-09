@@ -63,7 +63,7 @@ ENV/
 dmypy.json
 
 # Streamlit
-.streamlit/
+.streamlit/secrets.toml
 
 # Logs
 *.log

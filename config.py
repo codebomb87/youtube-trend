@@ -1,11 +1,11 @@
 import os
 from dotenv import load_dotenv
 
-# 환경 변수 로드
+# 환경 변수 로드 (로컬 개발용)
 load_dotenv()
 
-# YouTube API 설정
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+# YouTube API 설정 - 런타임에 app.py에서 설정됨
+YOUTUBE_API_KEY = None  # app.py에서 동적으로 설정
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
