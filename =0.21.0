@@ -1,0 +1,5 @@
+Requirement already satisfied: kiwipiepy in c:\users\dlago\miniconda3\lib\site-packages (0.21.0)
+Requirement already satisfied: kiwipiepy_model<0.22,>=0.21 in c:\users\dlago\miniconda3\lib\site-packages (from kiwipiepy) (0.21.0)
+Requirement already satisfied: numpy in c:\users\dlago\miniconda3\lib\site-packages (from kiwipiepy) (1.26.4)
+Requirement already satisfied: tqdm in c:\users\dlago\miniconda3\lib\site-packages (from kiwipiepy) (4.65.0)
+Requirement already satisfied: colorama in c:\users\dlago\miniconda3\lib\site-packages (from tqdm->kiwipiepy) (0.4.6)
