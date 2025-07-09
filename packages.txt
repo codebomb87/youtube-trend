@@ -2,5 +2,5 @@ fonts-nanum
 fonts-nanum-coding
 fonts-nanum-extra
 fonts-liberation
-ttf-dejavu-core
+fonts-dejavu-core
 fontconfig 

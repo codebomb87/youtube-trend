@@ -43,7 +43,7 @@ class TextProcessor:
         self.setup_stopwords()
     
     def download_nltk_data(self):
-        """NLTK 데이터 다운로드"""
+        """NLTK 데이터 다운로드 - 배포 환경 지원 개선"""
         try:
             import ssl
             try:
@@ -53,12 +53,33 @@ class TextProcessor:
             else:
                 ssl._create_default_https_context = _create_unverified_https_context
             
-            nltk.download('punkt', quiet=True)
-            nltk.download('stopwords', quiet=True)
-            nltk.download('wordnet', quiet=True)
-            print("NLTK 데이터 다운로드 완료")
+            # 필수 NLTK 데이터 목록 (최신 버전 호환)
+            nltk_resources = [
+                'punkt',       # 기본 토크나이저
+                'punkt_tab',   # 최신 NLTK용 토크나이저
+                'stopwords',   # 불용어
+                'wordnet',     # 워드넷
+                'averaged_perceptron_tagger'  # 품사 태깅 (필요시)
+            ]
+            
+            downloaded = []
+            failed = []
+            
+            for resource in nltk_resources:
+                try:
+                    nltk.download(resource, quiet=True)
+                    downloaded.append(resource)
+                except Exception as e:
+                    failed.append(f"{resource}: {e}")
+                    print(f"NLTK {resource} 다운로드 실패: {e}")
+            
+            if downloaded:
+                print(f"NLTK 데이터 다운로드 완료: {', '.join(downloaded)}")
+            if failed:
+                print(f"NLTK 일부 다운로드 실패: {'; '.join(failed)}")
+                
         except Exception as e:
-            print(f"NLTK 데이터 다운로드 실패: {e}")
+            print(f"NLTK 데이터 다운로드 전체 실패: {e}")
     
     def setup_korean_analyzer(self):
         """한국어 형태소 분석기 설정"""
@@ -223,18 +244,38 @@ class TextProcessor:
             return self.extract_korean_keywords_regex(text, min_length)
     
     def extract_english_keywords(self, text, min_length=2):
-        """영어 키워드 추출"""
+        """영어 키워드 추출 - 강화된 토크나이저 fallback"""
         if not text:
             return []
         
+        tokens = []
+        
+        # 1단계: NLTK word_tokenize 시도
         try:
-            # NLTK 토크나이저 사용 (punkt_tab 다운로드 완료)
+            from nltk.tokenize import word_tokenize
             tokens = word_tokenize(text.lower())
         except Exception as e:
-            print(f"NLTK 토크나이저 실패, 간단한 분할 사용: {e}")
-            # NLTK 실패 시 간단한 공백 기반 분할 사용
-            import re
-            tokens = re.findall(r'\b\w+\b', text.lower())
+            print(f"NLTK word_tokenize 실패: {e}")
+            
+            # 2단계: NLTK sent_tokenize + 분할 시도
+            try:
+                from nltk.tokenize import sent_tokenize
+                sentences = sent_tokenize(text)
+                import re
+                for sentence in sentences:
+                    words = re.findall(r'\b\w+\b', sentence.lower())
+                    tokens.extend(words)
+            except Exception as e2:
+                print(f"NLTK sent_tokenize도 실패: {e2}")
+                
+                # 3단계: 정규표현식 기반 토크나이징 (최종 fallback)
+                import re
+                # 단어 경계를 더 정확하게 찾기
+                tokens = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+                
+        if not tokens:
+            # 4단계: 매우 간단한 공백 분할 (최후의 수단)
+            tokens = [word.strip().lower() for word in text.split() if word.strip().isalpha()]
         
         try:
             # 불용어 제거 및 길이 필터링
