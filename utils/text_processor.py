@@ -371,8 +371,82 @@ class TextProcessor:
             print(f"TF-IDF 계산 실패: {e}")
             return {}
     
+    def _find_korean_font(self):
+        """한글 폰트 찾기 - 여러 방법으로 시도"""
+        import os
+        import platform
+        
+        # 1. 우선순위 폰트 목록 (배포 환경에서 많이 사용되는 폰트들)
+        font_candidates = [
+            # Streamlit Cloud / Linux 배포 환경 (Ubuntu, Debian 등)
+            '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+            '/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf',
+            '/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf',
+            '/usr/share/fonts/truetype/nanum-coding/NanumGothicCoding.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # 유니코드 지원
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+            # 프로젝트 내 폰트 (향후 추가 가능)
+            './fonts/NanumGothic.ttf',
+            'fonts/NanumGothic.ttf',
+            # macOS
+            '/System/Library/Fonts/AppleGothic.ttf',
+            '/Library/Fonts/NanumGothic.ttf',
+            # Windows
+            'C:/Windows/Fonts/malgun.ttf',
+            'C:/Windows/Fonts/gulim.ttc',
+            'C:/Windows/Fonts/batang.ttc',
+        ]
+        
+        # 2. 직접 파일 경로 확인
+        for font_path in font_candidates:
+            if os.path.exists(font_path):
+                return font_path
+        
+        # 3. matplotlib font_manager 사용
+        try:
+            import matplotlib.font_manager as fm
+            system_fonts = fm.findSystemFonts()
+            
+            # 한글 폰트 검색 (우선순위)
+            korean_font_names = [
+                'nanum', 'malgun', 'gulim', 'batang', 'gothic', 
+                'apple', 'korean', 'hangul', 'dejavu'
+            ]
+            
+            for font_name in korean_font_names:
+                matching_fonts = [f for f in system_fonts if font_name in f.lower()]
+                if matching_fonts:
+                    return matching_fonts[0]
+                    
+        except Exception as e:
+            print(f"Font manager 사용 중 오류: {e}")
+        
+        # 4. 플랫폼별 기본 폰트 시도
+        try:
+            system = platform.system().lower()
+            if system == 'linux':
+                # Linux/배포 환경에서 DejaVu Sans 사용 (유니코드 지원)
+                linux_fonts = [
+                    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                    '/usr/share/fonts/TTF/DejaVuSans.ttf',
+                    '/usr/share/fonts/liberation/LiberationSans-Regular.ttf'
+                ]
+                for font in linux_fonts:
+                    if os.path.exists(font):
+                        return font
+                        
+            elif system == 'darwin':  # macOS
+                return '/System/Library/Fonts/AppleGothic.ttf'
+                
+        except Exception as e:
+            print(f"플랫폼별 폰트 검색 중 오류: {e}")
+        
+        return None
+    
     def generate_wordcloud(self, keywords_freq, width=None, height=None):
-        """워드 클라우드 생성"""
+        """워드 클라우드 생성 - 배포 환경 한글 지원 개선"""
         if not keywords_freq:
             return None
         
@@ -382,32 +456,56 @@ class TextProcessor:
             if height is None:
                 height = config.WORDCLOUD_HEIGHT
             
-            # 한글 폰트 설정 (Windows용)
-            font_path = None
-            try:
-                import matplotlib.font_manager as fm
-                system_fonts = fm.findSystemFonts()
-                korean_fonts = [f for f in system_fonts if 'malgun' in f.lower() or 'nanum' in f.lower()]
-                if korean_fonts:
-                    font_path = korean_fonts[0]
-            except:
+            # 한글 폰트 경로 찾기
+            font_path = self._find_korean_font()
+            
+            # 워드클라우드 설정
+            wordcloud_params = {
+                'width': width,
+                'height': height,
+                'background_color': config.WORDCLOUD_BACKGROUND,
+                'colormap': config.WORDCLOUD_COLORMAP,
+                'relative_scaling': 0.5,
+                'min_font_size': 10,
+                'max_font_size': 100,
+                'prefer_horizontal': 0.7,
+                'max_words': 100,
+                'collocations': False  # 단어 조합 방지
+            }
+            
+            # 폰트가 발견된 경우에만 font_path 추가
+            if font_path:
+                wordcloud_params['font_path'] = font_path
+                print(f"워드클라우드에 폰트 적용: {font_path}")
+            else:
+                print("한글 폰트를 찾지 못했습니다. 기본 폰트를 사용합니다.")
+                # 폰트가 없어도 워드클라우드 생성 시도
                 pass
             
-            wordcloud = WordCloud(
-                width=width,
-                height=height,
-                background_color=config.WORDCLOUD_BACKGROUND,
-                colormap=config.WORDCLOUD_COLORMAP,
-                font_path=font_path,
-                relative_scaling=0.5,
-                min_font_size=10
-            ).generate_from_frequencies(keywords_freq)
+            # 워드클라우드 생성
+            wordcloud = WordCloud(**wordcloud_params).generate_from_frequencies(keywords_freq)
             
             return wordcloud
             
         except Exception as e:
             print(f"워드 클라우드 생성 실패: {e}")
-            return None
+            # 폰트 없이 다시 시도
+            try:
+                print("폰트 없이 워드클라우드 재시도...")
+                basic_params = {
+                    'width': width or config.WORDCLOUD_WIDTH,
+                    'height': height or config.WORDCLOUD_HEIGHT,
+                    'background_color': config.WORDCLOUD_BACKGROUND,
+                    'colormap': config.WORDCLOUD_COLORMAP,
+                    'relative_scaling': 0.5,
+                    'min_font_size': 10,
+                    'collocations': False
+                }
+                wordcloud = WordCloud(**basic_params).generate_from_frequencies(keywords_freq)
+                return wordcloud
+            except Exception as e2:
+                print(f"기본 워드클라우드 생성도 실패: {e2}")
+                return None
     
     def create_keyword_network(self, df, min_length=2, max_keywords=30, min_cooccurrence=2):
         """키워드 네트워크 분석 - 키워드 간 연관성 분석"""
